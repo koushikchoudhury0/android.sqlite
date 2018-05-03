@@ -33,18 +33,11 @@ public class DatabaseManager extends SQLiteOpenHelper
         public void onFailure(@Nullable String cause);
     }
 
-    public interface QueryListener
-    {
-        public void onFailure(String cause);
-        public void onSuccess();
-    }
-
     private final String TAG  = "DatabaseManager";
-    private Boolean debug=false;
+    private boolean debug=false;
     private String db_directory, db_file, db_name;
     private Context context;
     private CreationListener creation_listener = null;
-    private QueryListener query_listener = null;
     private SQLiteDatabase db;
 
 
@@ -66,13 +59,13 @@ public class DatabaseManager extends SQLiteOpenHelper
         super.close();
     }
 
-    public DatabaseManager(Context context, String db_name, Boolean debug)
+    public DatabaseManager(Context context, String db_name, boolean debug)
     {
         super(context, db_name, null, 1);
         this.context = context;
         this.db_name = db_name;
         db_directory = context.getDatabasePath(db_name).getParent();
-        Log.d(TAG, "Database Path: "+context.getDatabasePath(db_name).getAbsolutePath());
+        if (debug) Log.d(TAG, "Database Path: "+context.getDatabasePath(db_name).getAbsolutePath());
         db_file = db_directory+File.separator+db_name;
         this.debug = debug;
     }
@@ -82,14 +75,8 @@ public class DatabaseManager extends SQLiteOpenHelper
         this.creation_listener = listener;
     }
 
-    public void setOnQueryListener(QueryListener listener)
-    {
-        this.query_listener = listener;
-    }
-
     private boolean checkDatabase()
     {
-        SQLiteDatabase db = null;
         try
         {
             db = SQLiteDatabase.openDatabase(db_file, null, SQLiteDatabase.OPEN_READWRITE);
@@ -97,12 +84,11 @@ public class DatabaseManager extends SQLiteOpenHelper
         catch(Exception e)
         {
             if (debug) Log.d(TAG, "checkDatabase():: Can't check database because: "+e.getMessage());
-            //e.printStackTrace();
+            e.printStackTrace();
             return false;
         }
-        if(db != null)
+        if (db != null)
         {
-            db.close();
             if (debug) Log.d(TAG, "checkDatabase():: Database found.");
             return true;
         }
@@ -114,7 +100,7 @@ public class DatabaseManager extends SQLiteOpenHelper
     {
         if (!checkDatabase())
         {
-            if (debug) Log.d(TAG, "copyDatabase():: No databases were found, copying now");
+            if (debug) Log.d(TAG, "createDatabase():: No databases were found, copying now");
             try
             {
                 File db_dir = new File(db_directory);
@@ -137,19 +123,19 @@ public class DatabaseManager extends SQLiteOpenHelper
                 destination_stream.flush();
                 destination_stream.close();
                 source_stream.close();
-                if (debug) Log.d(TAG, "copyDatabase():: Database copied");
+                if (debug) Log.d(TAG, "createDatabase():: Database copied");
                 if (creation_listener!=null) creation_listener.onSuccess("fresh");
             }
             catch (Exception e)
             {
-                if (debug) Log.d(TAG, "copyDatabase():: Database cannot be copied because: "+e.getMessage());
+                if (debug) Log.d(TAG, "createDatabase():: Database cannot be copied because: "+e.getMessage());
                 e.printStackTrace();
                 if (creation_listener!=null) creation_listener.onFailure(e.getMessage());
             }
         }
         else
         {
-            if (debug) Log.d(TAG, "copyDataBase():: Database is found, skipped copy");
+            if (debug) Log.d(TAG, "createDatabase():: Database is found, skipped copy");
             if (creation_listener!=null) creation_listener.onSuccess("existing");
         }
     }
@@ -161,21 +147,25 @@ public class DatabaseManager extends SQLiteOpenHelper
         db = SQLiteDatabase.openDatabase(db_file, null, SQLiteDatabase.OPEN_READWRITE);
         if (db == null)
         {
-            if (debug) Log.d(TAG, "openDatabase():: Unopened");
+            if (debug) Log.d(TAG, "getDatabase():: Coud not open Database");
         }
         else
         {
-            if (debug) Log.d(TAG, "openDatabase():: Database Opened");
+            if (debug) Log.d(TAG, "getDatabase():: Database Opened");
         }
         return db;
-
     }
     
     public void destroy()
     {
+        if (debug) Log.d(TAG, "Destroying DatabaseManager Instance");
         close();
-        db=null;
-        query_listener = null;
+        if (db!=null)
+        {
+            db.close();
+            db=null;
+        }
+        context = null;
         creation_listener = null;
     }
 }
